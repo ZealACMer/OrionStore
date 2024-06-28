@@ -67,4 +67,4 @@ $ curl elasticsearch主机ip地址:9200/metadata -XPUT -d' {"mappings":{"objects
 ```
 
 ## 使用示例
--
+- todo
