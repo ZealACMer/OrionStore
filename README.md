@@ -68,4 +68,30 @@ $ curl elasticsearch主机ip地址:9200/metadata -XPUT -d' {"mappings":{"objects
 
 ## 使用示例
 - 本项目使用了4+2RS纠删码的模式，所以一共需要六台主机存储数据(存储4个数据分片+2个校验分片)，还需要两台主机承担接口服务器的角色，此外还需要主机分别用来部署RabbitMQ和ElasticSearch。在硬件资源受限的情况下，可以使用本机的网卡绑定8个虚拟网络地址(具体的设置，可以根据自己的操作系统，搜索相应的文档)，如此一来，就可以用一台机器同时模拟8台主机(6台存储数据的主机及2台用于接口服务的主机)的操作，RabbitMQ和ElasticSearch也可部署在本机上。
+- 首先，在本机创建相应的文件夹，用于存储相关数据，之所以在tmp目录下创建1～6文件夹，是用来区分6个数据节点的存储目录，如果每个数据节点单独部署，可以省略此数字。
+  ```bash
+  #!/bin/bash
+   for i in `seq 1 6`
+   do
+       mkdir -p /tmp/$i/objects
+       mkdir -p /tmp/$i/temp
+       mkdir -p /tmp/$i/garbage
+   done
+  ```
+- 启动RabbitMQ和ElasticSearch之后，执行如下命令，用来模拟启动6个数据节点和2个接口服务节点。
+   ```bash
+   #!/bin/bash
+   export RABBITMQ_SERVER=amqp://test:test@(主机ip地址):5672
+   export ES_SERVER=(主机ip地址):9200
+   
+   LISTEN_ADDRESS=(数据节点1绑定的虚拟网络地址:端口号) STORAGE_ROOT=/tmp/1 go run dataServer/dataServer.go &
+   LISTEN_ADDRESS=(数据节点2绑定的虚拟网络地址:端口号) STORAGE_ROOT=/tmp/2 go run dataServer/dataServer.go &
+   LISTEN_ADDRESS=(数据节点3绑定的虚拟网络地址:端口号) STORAGE_ROOT=/tmp/3 go run dataServer/dataServer.go &
+   LISTEN_ADDRESS=(数据节点4绑定的虚拟网络地址:端口号) STORAGE_ROOT=/tmp/4 go run dataServer/dataServer.go &
+   LISTEN_ADDRESS=(数据节点5绑定的虚拟网络地址:端口号) STORAGE_ROOT=/tmp/5 go run dataServer/dataServer.go &
+   LISTEN_ADDRESS=(数据节点6绑定的虚拟网络地址:端口号) STORAGE_ROOT=/tmp/6 go run dataServer/dataServer.go &
+   
+   LISTEN_ADDRESS=(接口服务节点1绑定的虚拟网络地址:端口号) go run apiServer/apiServer.go &
+   LISTEN_ADDRESS=(接口服务节点2绑定的虚拟网络地址:端口号) go run apiServer/apiServer.go &
+   ```
 
