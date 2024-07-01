@@ -94,4 +94,50 @@ $ curl elasticsearch主机ip地址:9200/metadata -XPUT -d' {"mappings":{"objects
    LISTEN_ADDRESS=(接口服务节点1绑定的虚拟网络地址:端口号) go run apiServer/apiServer.go &
    LISTEN_ADDRESS=(接口服务节点2绑定的虚拟网络地址:端口号) go run apiServer/apiServer.go &
    ```
-
+- 上传数据
+  ```bash
+  #获取上传对象的散列值
+  openssl dgst -sha256 -binary /upload/1.mp3 | base64
+  #进行对象的上传操作
+  curl -v --data-binary @/upload/1.mp3 -X PUT (接口服务节点1或2绑定的虚拟网络地址:端口号)/objects/1.mp3 -H "digest: SHA-256=上传对象的散列值"
+  ```
+- 下载数据
+  ```bash
+  #非压缩格式下载
+  curl -v (接口服务节点1或2绑定的虚拟网络地址:端口号)/objects/1.mp3 -o 1.mp3
+  #以Gzip压缩格式下载
+  curl -v (接口服务节点1或2绑定的虚拟网络地址:端口号)/objects/1.mp3 -o 1_mp3.gz -H "accept-encoding: gzip"
+  #进行解压
+  gunzip 1_mp3.gz
+  ```
+- 分段上传
+  ```bash
+  #获取文件的字节大小
+  du -b /upload/2.MP4
+  #获取文件的散列值
+  openssl dgst -sha256 -binary /upload/2.MP4 | base64
+  #获取上传文件的token
+  curl -v (接口服务节点1或2绑定的虚拟网络地址:端口号)/objects/2.MP4 -X POST -H "digest: SHA-256=文件的散列值" -H "size:文件大小的字节数"
+  #假设2.MP4的大小为1GB，上传第一段(设置为约640M)
+  dd if=/upload/2.MP4 of=- bs=1000000 count=640 | 
+  curl -v --data-binary @- -X PUT  (接口服务节点1或2绑定的虚拟网络地址:端口号)/(文件的token)
+  #上传第二段
+  dd if=/upload/2.MP4 of=- bs=1000000 skip=640 | 
+  curl -v --data-binary @- -X PUT  (接口服务节点1或2绑定的虚拟网络地址:端口号)/(文件的token) -H "range: bytes=640000000-"
+  ```
+- 断点下载(从32000字节开始续传)
+  ```bash
+  curl -v -C -o 2.MP4 (接口服务节点1或2绑定的虚拟网络地址:端口号)/objects/2.MP4 -H "range: bytes=32000-"
+  ```
+- 操作对象的元数据
+  ```bash
+  #获取对象元数据的最新版本
+  curl (接口服务节点1或2绑定的虚拟网络地址:端口号)/objects/1.jpg
+  #获取对象元数据的指定版本
+  curl (接口服务节点1或2绑定的虚拟网络地址:端口号)/objects/1.jpg?version=1 
+  #获取对象元数据的所有版本
+  curl (接口服务节点1或2绑定的虚拟网络地址:端口号)/versions/1.jpg
+  #删除对象的元数据
+  curl (接口服务节点1或2绑定的虚拟网络地址:端口号)/objects/1.jpg -XDELETE
+  ```
+- 根据对象版本的留存策略，删除陈旧的对象版本；删除数据节点的无效数据；以及数据节点中数据的自动检测与修复，系统后台会自动执行，无需手动操作
